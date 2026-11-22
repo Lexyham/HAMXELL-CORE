@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Rendered documentation (output of lib/markdown.ts) */
+.doc { color: var(--text-primary); font-size: var(--fs-body); line-height: 1.7; max-width: 68ch; }
+.doc > * + * { margin-top: 1em; }
+.doc h1, .doc h2, .doc h3, .doc h4, .doc h5, .doc h6 { font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; margin-top: 1.8em; }
+.doc h1 { font-size: var(--fs-h1); }
+.doc h2 { font-size: var(--fs-h2); }
+.doc h3 { font-size: 1.1rem; }
+.doc h4, .doc h5, .doc h6 { font-size: 1rem; }
+.doc a { color: var(--text-primary); border-bottom: 1px solid var(--brand-gold); }
+.doc a:hover { color: var(--brand-gold); }
+.doc code { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.9em; background: var(--bg-elevated); padding: 0.1em 0.35em; }
+.doc pre { overflow-x: auto; max-width: 100%; background: var(--bg-secondary); border: 1px solid var(--border); padding: 1rem; }
+.doc pre code { background: none; padding: 0; }
+.doc ul, .doc ol { padding-left: 1.4em; }
+.doc ul { list-style: disc; }
+.doc ol { list-style: decimal; }
+.doc li > ul, .doc li > ol { margin-top: 0.25em; }
+.doc blockquote { border-left: 2px solid var(--border); padding-left: 1rem; color: var(--text-secondary); }
+.doc hr { border: 0; border-top: 1px solid var(--border); }
+.doc .table-wrap { overflow-x: auto; max-width: 100%; }
+.doc table { border-collapse: collapse; font-size: 0.92em; }
+.doc th, .doc td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+.doc th { background: var(--bg-secondary); }
