@@ -1,6 +1,7 @@
 import 'server-only';
 import { createClient } from '@supabase/supabase-js';
 import { PLACEHOLDERS, type Category, type Product, type Visibility } from './products';
+import { PublicDataUnavailableError } from './rag/errors';
 import { serviceClient } from './supabase/admin';
 import { supabaseConfigured } from './supabase/config';
 
@@ -46,6 +47,23 @@ export async function listPublic(opts: { limit?: number; category?: Category } =
     return [];
   }
   return (data ?? []).map(fromRow);
+}
+
+/** Strict public directory read for the chatbot: an empty result is valid, but an unavailable database is not. */
+export async function listPublicForChat(): Promise<Product[]> {
+  if (!supabaseConfigured()) throw new PublicDataUnavailableError('products');
+  const { data, error } = await publicClient()
+    .from('projects')
+    .select('*')
+    .eq('visibility', 'public')
+    .order('featured', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('listPublicForChat', error.message);
+    throw new PublicDataUnavailableError('products');
+  }
+  if (data === null) throw new PublicDataUnavailableError('products');
+  return data.map(fromRow);
 }
 
 /**

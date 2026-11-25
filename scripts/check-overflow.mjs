@@ -13,7 +13,7 @@ import { findOverflow } from './overflow-check.mjs';
 
 const BASE = (process.env.BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 const ROUTES = (process.env.ROUTES ?? '/,/products,/experiments,/labs,/docs,/about,/contact,/licenses,/admin/login,/no-such-page').split(',');
-const WIDTHS = (process.env.WIDTHS ?? '320,360,390,768,1024,1440').split(',').map(Number);
+const WIDTHS = (process.env.WIDTHS ?? '320,360,390,430,768,820,900,1023,1024,1280,1440').split(',').map(Number);
 
 const browser = await chromium.launch();
 let failures = 0;

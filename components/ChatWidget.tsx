@@ -24,6 +24,7 @@ export default function ChatWidget() {
   const area = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLElement>(null);
 
   useEffect(() => { if (prefersReducedMotion()) setVis((v) => ({ ...v, reduced: true })); }, []);
   useEffect(() => { setVis((v) => onOpen(v, open)); }, [open]);
@@ -46,16 +47,107 @@ export default function ChatWidget() {
     return () => { clearTimeout(timer); window.removeEventListener('scroll', onScrolled); };
   }, [introDone]);
 
-  useEffect(() => { if (open) box.current?.focus(); }, [open]);
-  useEffect(() => { area.current?.scrollTo({ top: area.current.scrollHeight }); }, [msgs, busy]);
-
-  const close = useCallback(() => { setOpen(false); launcher.current?.focus(); }, []);
   useEffect(() => {
     if (!open) return;
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && close();
-    window.addEventListener('keydown', k);
-    return () => window.removeEventListener('keydown', k);
+    box.current?.focus();
+
+    const updateViewport = () => {
+      const viewport = window.visualViewport;
+      const height = viewport?.height ?? window.innerHeight;
+      const offsetTop = viewport?.offsetTop ?? 0;
+      document.documentElement.style.setProperty('--chat-vh', `${Math.round(height)}px`);
+      document.documentElement.style.setProperty('--chat-offset-top', `${Math.round(offsetTop)}px`);
+    };
+    updateViewport();
+    window.visualViewport?.addEventListener('resize', updateViewport);
+    window.visualViewport?.addEventListener('scroll', updateViewport);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateViewport);
+      window.visualViewport?.removeEventListener('scroll', updateViewport);
+    };
+  }, [open]);
+  useEffect(() => { area.current?.scrollTo({ top: area.current.scrollHeight }); }, [msgs, busy]);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    window.requestAnimationFrame(() => launcher.current?.focus());
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const root = dialog.current;
+      if (!root) return;
+      const focusable = Array.from(root.querySelectorAll<HTMLElement>(
+        'button:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), a[href]:not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => !element.hasAttribute('hidden') && element.getAttribute('aria-hidden') !== 'true');
+      if (focusable.length === 0) {
+        event.preventDefault();
+        root.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (
+        active === root ||
+        active === first ||
+        !root.contains(active)
+      )) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !root.contains(active))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', keydown);
+    return () => window.removeEventListener('keydown', keydown);
   }, [open, close]);
+
+  useEffect(() => {
+    if (!open) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const previous = {
+      htmlOverflow: html.style.overflow,
+      htmlOverscroll: html.style.overscrollBehavior,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyWidth: body.style.width,
+      bodyOverflow: body.style.overflow,
+      bodyOverscroll: body.style.overscrollBehavior,
+    };
+
+    html.style.overflow = 'hidden';
+    html.style.overscrollBehavior = 'none';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    body.style.overscrollBehavior = 'none';
+
+    return () => {
+      html.style.overflow = previous.htmlOverflow;
+      html.style.overscrollBehavior = previous.htmlOverscroll;
+      body.style.position = previous.bodyPosition;
+      body.style.top = previous.bodyTop;
+      body.style.width = previous.bodyWidth;
+      body.style.overflow = previous.bodyOverflow;
+      body.style.overscrollBehavior = previous.bodyOverscroll;
+      window.scrollTo({ top: scrollY, left: 0, behavior: 'auto' });
+    };
+  }, [open]);
 
   const send = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -68,7 +160,7 @@ export default function ChatWidget() {
       const j = (await r.json().catch(() => ({}))) as { answer?: string; sources?: Msg['sources']; error?: string };
       setMsgs([...next, { role: 'assistant', content: r.ok && j.answer ? j.answer : j.error ?? 'Something went wrong. Please try again.', sources: r.ok ? j.sources : undefined }]);
     } catch {
-      setMsgs([...next, { role: 'assistant', content: 'Could not reach the assistant. Please check your connection.' }]);
+      setMsgs([...next, { role: 'assistant', content: 'I could not connect to the assistant service just now. Your internet connection may still be working; please try again shortly.' }]);
     } finally { setBusy(false); }
   };
 
@@ -98,14 +190,23 @@ export default function ChatWidget() {
 
       {open && (
         <section
+          ref={dialog}
           role="dialog"
+          aria-modal="true"
           aria-label="HAMXELL CORE assistant"
-          style={{ ...EDGE, width: 'min(24rem, calc(100vw - 1.5rem))', height: 'min(32rem, calc(100dvh - 1.5rem))' }}
+          aria-labelledby="chat-assistant-title"
+          tabIndex={-1}
+          style={{
+            right: EDGE.right,
+            top: 'calc(var(--chat-offset-top, 0px) + var(--chat-vh, 100dvh) - min(32rem, calc(var(--chat-vh, 100dvh) - 1.5rem - env(safe-area-inset-bottom))) - max(0.75rem, env(safe-area-inset-bottom)))',
+            width: 'min(24rem, calc(100% - 1.5rem))',
+            height: 'min(32rem, calc(var(--chat-vh, 100dvh) - 1.5rem - env(safe-area-inset-bottom)))',
+          }}
           className="fixed z-50 flex flex-col border border-line bg-bg-secondary"
         >
           <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-            <p className="font-mono text-label uppercase text-ink-muted">Assistant</p>
-            <button type="button" onClick={close} className="border border-line px-2 py-1 font-mono text-label uppercase hover:border-ink">Close</button>
+            <p id="chat-assistant-title" className="font-mono text-label uppercase text-ink-muted">HAMXELL CORE assistant</p>
+            <button type="button" onClick={close} aria-label="Close assistant" className="min-h-[44px] border border-line px-3 font-mono text-label uppercase hover:border-ink">Close</button>
           </header>
 
           <div ref={area} role="log" aria-live="polite" className="flex-1 space-y-4 overflow-y-auto px-4 py-4 text-small">
@@ -131,9 +232,9 @@ export default function ChatWidget() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
               placeholder="Ask a question"
-              className="w-full resize-none border border-line bg-bg px-3 py-2 text-small text-ink focus:border-brand-blue focus:outline-none"
+              className="min-h-[48px] w-full resize-none border border-line bg-bg px-3 py-2 text-small text-ink focus:border-brand-blue focus:outline-none"
             />
-            <button type="submit" disabled={busy || !input.trim()} className="mt-2 w-full border border-brand-blue bg-brand-blue px-4 py-2 text-small font-medium hover:bg-transparent disabled:opacity-40">Send</button>
+            <button type="submit" disabled={busy || !input.trim()} className="mt-2 min-h-[44px] w-full border border-brand-blue bg-brand-blue px-4 py-2 text-small font-medium hover:bg-transparent disabled:opacity-40">Send</button>
           </form>
         </section>
       )}

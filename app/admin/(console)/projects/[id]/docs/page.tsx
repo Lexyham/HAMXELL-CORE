@@ -48,7 +48,7 @@ export default async function ProjectDocsPage({ params, searchParams }: { params
           <p className="mt-3 text-small text-ink-muted">
             {usable.length > 0
               ? `Order: ${usable.map((p) => `${p} (${MODELS[p]()})`).join(' then ')}. Only project fields on the allowlist are sent; credentials never are. Published or manually edited documents are not overwritten.`
-              : 'No AI provider key is set. Add GEMINI_API_KEY, GROQ_API_KEY or OPENROUTER_API_KEY to .env.'}
+              : 'No AI provider key is set. Add GEMINI_API_KEY, GROQ_API_KEY or OPENROUTER_API_KEY to .env.local.'}
           </p>
         </form>
       )}

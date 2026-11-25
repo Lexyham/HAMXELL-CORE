@@ -17,7 +17,7 @@ export interface Hit { id: string; score: number; coverage: number }
 /**
  * Okapi BM25 keyword ranking over a small in-memory corpus. Titles count double. This is lexical retrieval, not semantic:
  * a question must share words with the source. A result is returned only if it matches enough of the question's terms,
- * so unrelated questions retrieve nothing (and the chatbot then answers that it has no information, without calling a model).
+ * so unrelated questions retrieve nothing; the public chatbot may still supply a separate, non-citable overview context.
  */
 export class Bm25 {
   private tf: Map<string, number>[] = [];

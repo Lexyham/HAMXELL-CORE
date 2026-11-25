@@ -7,7 +7,7 @@ export interface Sealed { ct: string; iv: string; tag: string }
 /** Loads a 32-byte base64 key from the environment. Generate one with `npm run keygen`. */
 export function loadKey(name: 'VAULT_MASTER_KEY' | 'BACKUP_ENCRYPTION_KEY'): Buffer {
   const raw = process.env[name];
-  if (!raw) throw new VaultConfigError(`${name} is not set. Generate one with "npm run keygen" and add it to .env.`);
+  if (!raw) throw new VaultConfigError(`${name} is not set. Generate one with "npm run keygen" and add it to .env.local.`);
   const key = Buffer.from(raw, 'base64');
   if (key.length !== 32) throw new VaultConfigError(`${name} must decode to exactly 32 bytes (base64).`);
   return key;

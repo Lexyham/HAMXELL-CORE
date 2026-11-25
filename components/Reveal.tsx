@@ -41,6 +41,13 @@ export default function Reveal({
   useEffect(() => {
     const el = ref.current;
     if (!el || !ready || prefersReducedMotion()) return;
+    const fallback = window.setTimeout(() => {
+      if (stagger) Array.from(el.children).forEach((child) => {
+        (child as HTMLElement).style.opacity = '1';
+        (child as HTMLElement).style.transform = 'none';
+      });
+      else { el.style.opacity = '1'; el.style.transform = 'none'; }
+    }, 3000);
     const targets = stagger ? Array.from(el.children) : el;
     const ctx = gsap.context(() => {
       gsap.fromTo(
@@ -58,7 +65,7 @@ export default function Reveal({
         },
       );
     }, el);
-    return () => ctx.revert();
+    return () => { window.clearTimeout(fallback); ctx.revert(); };
   }, [ready, stagger, y, delay, scroll]);
 
   const attr = stagger ? { 'data-reveal-stagger': '' } : { 'data-reveal': '' };

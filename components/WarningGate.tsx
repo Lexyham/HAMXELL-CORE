@@ -39,14 +39,14 @@ export default function WarningGate(props: { slug: string; name: string; statusL
             {props.needsPassword && (
               <div className="mt-5">
                 <label htmlFor="gate-pw" className="block font-mono text-label uppercase text-ink-muted">Access password</label>
-                <input id="gate-pw" type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="off" className="mt-2 w-full max-w-[20rem] border border-line bg-bg px-3 py-2 text-body text-ink focus:border-brand-blue focus:outline-none" />
+                <input id="gate-pw" type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="off" className="mt-2 min-h-[44px] w-full max-w-[20rem] border border-line bg-bg px-3 py-2 text-body text-ink focus:border-brand-blue focus:outline-none" />
               </div>
             )}
             <button
               type="button"
               disabled={!ack || pending || (props.needsPassword && !pw)}
               onClick={reveal}
-              className="mt-5 border border-brand-blue bg-brand-blue px-5 py-3 text-small font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+              className="mt-5 min-h-[44px] border border-brand-blue bg-brand-blue px-5 py-3 text-small font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
             >
               {pending ? 'Loading' : 'Continue'}
             </button>

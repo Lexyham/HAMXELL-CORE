@@ -44,7 +44,7 @@ export default function ClosingFrame() {
           <p className="text-body text-ink-muted">Send an enquiry and it will be read and answered directly.</p>
           <div className="mt-5 flex flex-wrap items-center gap-4">
             <Magnetic as="span" className="inline-block">
-              <Link href="/contact" className="inline-flex border border-brand-gold px-5 py-3 text-small font-medium transition-colors duration-200 ease-out hover:bg-brand-gold hover:text-bg">Start an enquiry</Link>
+              <Link href="/contact" className="inline-flex min-h-[44px] items-center border border-brand-gold px-5 py-3 text-small font-medium transition-colors duration-200 ease-out hover:bg-brand-gold hover:text-bg">Start an enquiry</Link>
             </Magnetic>
             {SOCIAL.map((s) => <a key={s.href} href={s.href} target="_blank" rel="noopener noreferrer" className="border-b border-brand-gold pb-1 font-mono text-label uppercase hover:text-brand-gold">{s.label}</a>)}
           </div>

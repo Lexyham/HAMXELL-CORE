@@ -17,9 +17,9 @@
   --danger: #de6875;
 
   /* fluid type (locked) */
-  --fs-hero: clamp(2.5rem, 7vw, 6rem);
-  --fs-h1: clamp(2rem, 4vw, 3.5rem);
-  --fs-body: clamp(0.95rem, 1vw, 1.05rem);
+  --fs-hero: clamp(2.25rem, 7vw, 5.5rem);
+  --fs-h1: clamp(1.875rem, 4vw, 3.25rem);
+  --fs-body: clamp(0.9375rem, 1vw, 1.05rem);
   /* fluid type (derived) */
   --fs-h2: clamp(1.25rem, 2vw, 1.75rem);
   --fs-small: clamp(0.8125rem, 0.9vw, 0.9rem);

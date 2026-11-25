@@ -57,7 +57,7 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="border border-line px-3 py-2 font-mono text-label uppercase text-ink md:hidden"
+          className="min-h-[44px] border border-line px-3 py-2 font-mono text-label uppercase text-ink md:hidden"
           aria-expanded={open}
           aria-controls="mobile-nav"
           onClick={() => setOpen((v) => !v)}

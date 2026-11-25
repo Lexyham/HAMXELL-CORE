@@ -29,7 +29,7 @@ export default async function VaultIndex({ searchParams }: { searchParams: { err
       <p className="mt-3 max-w-[60ch] text-small text-ink-muted">
         Secrets are encrypted with AES-256-GCM before they reach the database. Revealing one requires your password and is logged. Secrets never enter documentation or AI prompts.
       </p>
-      {!keyOk && <p className="mt-4 border border-warning p-4 text-small text-warning">VAULT_MASTER_KEY is not set. Run "npm run keygen" and add the result to .env before storing secrets.</p>}
+      {!keyOk && <p className="mt-4 border border-warning p-4 text-small text-warning">VAULT_MASTER_KEY is not set. Run "npm run keygen" and add the result to .env.local before storing secrets.</p>}
       <Notice error={searchParams.error} ok={searchParams.ok} />
 
       <ul className="mt-6 divide-y divide-line border-y border-line">

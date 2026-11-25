@@ -1,15 +1,16 @@
 import 'server-only';
-import { runChecks, runRepoChecks, type Finding } from './audit';
 import { analyzeHtml, type ImportResult } from './analyze';
 import { crawlSite, type Fetcher } from './crawl';
-import { fetchRepo, RepoError, type RepoFacts, type RepoFetch } from './github';
-import { buildReport, type Narrative } from './report';
+import { fetchRepo, RepoError, type RepoFetch } from './github';
 import { fetchSafe, parseTarget } from './safe-fetch';
 
 export type { ImportResult } from './analyze';
 export { CrawlError } from './safe-fetch';
 
-/** Reviews a site (landing page, further internal pages, robots.txt, sitemap, headers) and writes the audit report. */
+/**
+ * Reads a site the way a polite crawler would (landing page, further internal pages, robots.txt, sitemap, headers)
+ * and keeps what was found. The written description is produced from this afterwards; nothing here is shown as a report.
+ */
 export async function analyzeSiteDetailed(input: string, deps: { fetch?: Fetcher; repo?: string; repoFetch?: RepoFetch } = {}) {
   const target = parseTarget(input.trim());
   const { crawl, homeRaw } = await crawlSite(target.toString(), {
@@ -20,25 +21,15 @@ export async function analyzeSiteDetailed(input: string, deps: { fetch?: Fetcher
   });
   const base = analyzeHtml(homeRaw.body, homeRaw.headers, homeRaw.url, target.toString());
   if (homeRaw.truncated) base.notes.unshift('The landing page exceeded the size cap and was truncated; results may be incomplete.');
-  const findings: Finding[] = runChecks(crawl);
-  let repo: RepoFacts | undefined, repoError: string | undefined;
+  let repo: ImportResult['repo'], repoError: string | undefined;
   if (deps.repo?.trim()) {
-    try { repo = await fetchRepo(deps.repo, { fetch: deps.repoFetch, token: process.env.GITHUB_TOKEN }); findings.push(...runRepoChecks(repo)); }
-    catch (e) {
-      repoError = e instanceof RepoError ? e.message : 'The repository could not be reviewed.';
-      findings.push({ id: 'REP-00', area: 'Repository', title: 'Repository review', outcome: 'note', severity: 'info', observation: `The repository could not be reviewed: ${repoError}`, recommendation: 'Check the address and that the repository is public, then run the review again.', basis: 'observed' });
-    }
+    try { repo = await fetchRepo(deps.repo, { fetch: deps.repoFetch, token: process.env.GITHUB_TOKEN }); }
+    catch (e) { repoError = e instanceof RepoError ? e.message : 'The repository could not be reviewed.'; }
   }
-  const result: ImportResult = { ...base, schema: 2, crawl, findings, repo, repoError, reportMd: buildReport({ crawl, findings, tech: base.tech, repo }), files: {} };
+  const result: ImportResult = { ...base, schema: 2, crawl, repo, repoError, files: {} };
   return { result, page: { url: homeRaw.url, status: homeRaw.status, headers: homeRaw.headers as Record<string, unknown>, body: homeRaw.body, truncated: homeRaw.truncated } };
 }
 
 export async function analyzeSite(input: string): Promise<ImportResult> {
   return (await analyzeSiteDetailed(input)).result;
-}
-
-/** Re-writes the report, for example after an AI narrative has been added. Findings are never changed. */
-export function withNarrative(r: ImportResult, narrative?: Narrative): ImportResult {
-  if (!r.crawl || !r.findings) return r;
-  return { ...r, reportMd: buildReport({ crawl: r.crawl, findings: r.findings, tech: r.tech, narrative, repo: r.repo }) };
 }

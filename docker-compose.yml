@@ -1,15 +1,15 @@
-# Local convenience only: web + worker + Redis. Supabase, MongoDB and TiDB are hosted services, configured in .env.
+# Local convenience only: web + worker + Redis. Supabase, MongoDB and TiDB are hosted services, configured in .env.local.
 services:
   web:
     build: .
     ports: ["3000:3000"]
-    env_file: .env
+    env_file: .env.local
     environment: { REDIS_URL: redis://redis:6379 }
     depends_on: [redis]
   worker:
     build: .
     command: npm run worker
-    env_file: .env
+    env_file: .env.local
     environment: { REDIS_URL: redis://redis:6379 }
     depends_on: [redis]
   redis:

@@ -8,7 +8,7 @@ Next.js 14 (App Router), TypeScript, Tailwind CSS mapped to design tokens, Supab
 ## Quick start
 ```
 npm install
-cp env.example .env              # fill in what you have; the public site runs with no keys
+cp env.example .env.local        # fill in what you have; the public site runs with no keys
 npm run dev                      # development
 npm start                        # production build, then serve (use npm run serve after a build)
 ```
@@ -35,7 +35,7 @@ With no keys the public site runs on placeholder data and `/admin/login` says Su
 |---|---|
 | **Visibility** | public: listed, indexed. unlisted: `/u/slug`, noindex. warning: `/p/slug`, notice first, optional password, details load only afterwards, noindex. private: admins only, 404 publicly. Status is separate from visibility. |
 | **Sign-in** | Password + TOTP (aal2) on every admin page and action; 5 attempts per 15 minutes per address; HttpOnly SameSite=Strict cookies; accounts made with a temporary password must set their own first. Owners add and remove admins in Settings (never the last owner, never yourself). |
-| **Importer** | Audits a public site: polite crawl of up to 6 pages (robots.txt honoured, private networks blocked at connect time, 10 s timeout, 5 MB cap), sitemap, headers, compression, link status. About fifty checks in seven areas, written up as a formal report (summary, scope and limitations, profile, findings, inventory, prioritised register, recommendations, conclusion, appendices) and downloadable as PDF, HTML or Markdown. Optional public GitHub repository section (metadata and root file names only). Optional AI-written summary, labelled as such; findings always come from fixed checks. |
+| **Importer** | Reads a public site (polite crawl of up to 6 pages: robots.txt honoured, private networks blocked at connect time, 10 s timeout, 5 MB cap; sitemap, headers, compression) and writes a description of it: a tagline and five or six paragraphs on what it is, what it offers, how it appears to be built and how well it is run. AI-written from page content and plain-language signals, with a cautious automatic fallback when no provider is reachable. No audit report is produced or stored; the fixed checks run quietly only to inform the write-up. Optional public GitHub repository (metadata and root file names only). |
 | **AI** | Gemini, Groq, OpenRouter with per-task order and automatic fallback, token caps, and refusal to send anything that looks like a credential. Prompts are versioned in `lib/ai/prompts`. |
 | **Docs** | Four documents per project, AI drafts or manual, Markdown with live preview, Draft/Published, public only when the project is public, exports, version history with restore. Raw HTML is never rendered. |
 | **Vault** | AES-256-GCM per secret, entry id bound as authenticated data, owner role only, password re-entry to reveal, 30 s hide and clipboard clear, every reveal logged, encrypted backups. Never read by AI or the Knowledge Engine. |

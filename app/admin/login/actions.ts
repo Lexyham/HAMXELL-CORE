@@ -16,7 +16,7 @@ const WINDOW = 15 * 60 * 1000;
 const GENERIC = 'Invalid credentials.';
 
 export async function signIn(email: string, password: string): Promise<SignInResult> {
-  if (!supabaseConfigured()) return { error: 'Supabase is not configured. See .env.' };
+  if (!supabaseConfigured()) return { error: 'Supabase is not configured. See .env.local.' };
   if (!(await rateLimit(`signin:${clientIp()}`, MAX, WINDOW))) return { error: 'Too many attempts. Try again in 15 minutes.' };
 
   const sb = createClient();

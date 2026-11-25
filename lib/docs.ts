@@ -1,10 +1,12 @@
 import 'server-only';
 import { DOC_KINDS, type DocKind } from './ai/prompts/docs';
 import { publicClient } from './projects';
+import { PublicDataUnavailableError } from './rag/errors';
 import { supabaseConfigured } from './supabase/config';
 
 export interface PublicDoc { kind: DocKind; title: string; md: string; updatedAt: string }
 export interface DocProject { slug: string; name: string; summary: string }
+export interface PublicCorpusDoc { slug: string; projectName: string; kind: string; title: string; md: string }
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const order = (k: string) => DOC_KINDS.indexOf(k as DocKind);
@@ -63,4 +65,26 @@ export async function listAllPublicDocs(): Promise<{ slug: string; projectName: 
     .eq('projects.visibility', 'public');
   if (error) { console.error('listAllPublicDocs', error.message); return []; }
   return ((data ?? []) as any[]).map((r) => ({ slug: r.projects.slug, projectName: r.projects.name, kind: r.kind, title: r.title, md: r.content_md }));
+}
+
+/** Strict published-document read for the chatbot; no published rows is a valid empty directory. */
+export async function listAllPublicDocsForChat(): Promise<PublicCorpusDoc[]> {
+  if (!supabaseConfigured()) throw new PublicDataUnavailableError('documentation');
+  const { data, error } = await publicClient()
+    .from('documentation_docs')
+    .select('kind, title, content_md, projects!inner(slug, name, visibility)')
+    .eq('status', 'published')
+    .eq('projects.visibility', 'public');
+  if (error) {
+    console.error('listAllPublicDocsForChat', error.message);
+    throw new PublicDataUnavailableError('documentation');
+  }
+  if (data === null) throw new PublicDataUnavailableError('documentation');
+  return (data as any[]).map((r) => ({
+    slug: r.projects.slug,
+    projectName: r.projects.name,
+    kind: r.kind,
+    title: r.title,
+    md: r.content_md,
+  }));
 }

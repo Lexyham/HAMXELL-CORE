@@ -5,10 +5,8 @@ import { redirect } from 'next/navigation';
 import { logActivity } from '@/lib/activity';
 import { requireAdmin } from '@/lib/auth';
 import { flag } from '@/lib/flags';
-import { generate } from '@/lib/ai/client';
-import { AUDIT_PROMPT_VERSION, AUDIT_SYSTEM, auditPrompt, parseNarrative } from '@/lib/ai/prompts/audit';
-import { analyzeSiteDetailed, CrawlError, withNarrative, type ImportResult } from '@/lib/importer';
-import { summarise } from '@/lib/importer/report';
+import { analyzeSiteDetailed, CrawlError, type ImportResult } from '@/lib/importer';
+import { describeSite } from '@/lib/importer/describe-ai';
 import { recordImport } from '@/lib/importer/record';
 import { rateLimit } from '@/lib/rate-limit';
 import { createClient } from '@/lib/supabase/server';
@@ -41,6 +39,11 @@ export async function analyzeUrl(fd: FormData) {
     fail(message);
   }
 
+  // The audit stays behind the scenes; the written description is what the person reads first.
+  const aiOn = flag('FEATURE_AI_DOC_GENERATOR');
+  const aiOk = aiOn && (await rateLimit(`describe:${user.id}`, 30, 60 * 60 * 1000));
+  result!.description = await describeSite(result!, { ai: aiOk, actorId: user.id, reason: aiOn ? 'The hourly limit for AI descriptions was reached.' : 'AI features are switched off.' });
+
   const { data, error } = await createClient()
     .from('project_imports')
     .insert({ source_url: result!.sourceUrl, result: result, created_by: user.id })
@@ -61,12 +64,13 @@ export async function createDraft(fd: FormData) {
   if (!row) redirect('/admin/importer');
   const r = row!.result as ImportResult;
 
+  const d = r.description;
   const name = (r.observed.title || new URL(r.finalUrl).hostname).slice(0, 120);
   const base = slugify(name);
   const record = {
     name,
-    summary: r.observed.description.slice(0, 240),
-    description: `${r.observed.description}\n\nImported from ${r.finalUrl} on ${r.fetchedAt.slice(0, 10)}. Technology details were inferred from the public page and should be verified.`.trim(),
+    summary: (d?.summary || r.observed.description).slice(0, 240),
+    description: `${d?.text || r.observed.description}\n\nImported from ${r.finalUrl} on ${r.fetchedAt.slice(0, 10)}.${d ? ` The description was written from the public pages${d.source === 'ai' ? ' with AI assistance' : ''}.` : ''} Technology details were inferred from the public pages and should be verified.`.trim(),
     status: 'in_development',
     visibility: 'private',
     tags: r.tech.map((t) => t.name).slice(0, 12),
@@ -86,35 +90,23 @@ export async function createDraft(fd: FormData) {
   redirect(`/admin/importer/${importId}`);
 }
 
-/**
- * Optional AI step: the model writes the executive summary and closing note from the structured findings only (never from page HTML),
- * and the report is rewritten with those paragraphs, clearly labelled as AI-assisted. Findings and recommendations are never changed by it.
- */
-export async function addNarrative(fd: FormData) {
+/** Writes the description again from the stored crawl, for example after AI was switched on or a provider was down. Findings are untouched. */
+export async function regenerateDescription(fd: FormData) {
   const { user, email } = await requireAdmin();
   const id = String(fd.get('id') ?? '');
   const back = `/admin/importer/${id}`;
   const stop = (m: string): never => redirect(`${back}?error=${encodeURIComponent(m)}`);
-  if (!flag('FEATURE_AI_DOC_GENERATOR')) stop('AI features are switched off.');
-  if (!(await rateLimit(`narrative:${user.id}`, 20, 60 * 60 * 1000))) stop('Limit reached. Try again later.');
+  if (!(await rateLimit(`describe:${user.id}`, 30, 60 * 60 * 1000))) stop('Limit reached. Try again later.');
 
   const sb = createClient();
   const { data: row } = await sb.from('project_imports').select('result').eq('id', id).maybeSingle();
   if (!row) redirect('/admin/importer');
   const r = row!.result as ImportResult;
-  if (!r.crawl || !r.findings) stop('This import predates the audit report. Run the analysis again to use this.');
 
-  let message = '';
-  try {
-    const out = await generate({ task: 'import_summary', system: AUDIT_SYSTEM, prompt: auditPrompt({ host: new URL(r.finalUrl).hostname, pages: r.crawl!.pages.length, counts: summarise(r.findings!), findings: r.findings! }), promptVersion: AUDIT_PROMPT_VERSION, maxTokens: 700, actorId: user.id });
-    const { summary, conclusion } = parseNarrative(out.text);
-    if (!summary) throw new Error('The model returned no summary.');
-    const narrative = { summary, conclusion, provider: out.provider, model: out.model };
-    const next: ImportResult = { ...withNarrative(r, narrative), aiNarrative: { ...narrative, at: new Date().toISOString() } };
-    await sb.from('project_imports').update({ result: next }).eq('id', id);
-    await logActivity({ actorId: user.id, actorEmail: email, action: 'import.narrative', entity: 'import', entityId: id, meta: { provider: out.provider } });
-  } catch (e) {
-    message = e instanceof Error ? e.message : 'Could not write the narrative.';
-  }
-  redirect(message ? `${back}?error=${encodeURIComponent(message)}` : back);
+  const aiOn = flag('FEATURE_AI_DOC_GENERATOR');
+  const description = await describeSite(r, { ai: aiOn, actorId: user.id, reason: 'AI features are switched off.' });
+  const { error } = await sb.from('project_imports').update({ result: { ...r, description } }).eq('id', id);
+  if (error) stop('The new description could not be saved.');
+  await logActivity({ actorId: user.id, actorEmail: email, action: 'import.describe', entity: 'import', entityId: id, meta: { source: description.source, provider: description.provider ?? null } });
+  redirect(back);
 }

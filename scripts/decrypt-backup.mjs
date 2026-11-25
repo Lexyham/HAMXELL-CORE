@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 const file = process.argv[2];
 const raw = process.env.BACKUP_ENCRYPTION_KEY;
 if (!file || !raw) {
-  console.error('Usage: npm run decrypt-backup -- <file.json.enc>   (BACKUP_ENCRYPTION_KEY must be set in .env)');
+  console.error('Usage: npm run decrypt-backup -- <file.json.enc>   (BACKUP_ENCRYPTION_KEY must be set in .env.local)');
   process.exit(1);
 }
 const key = Buffer.from(raw, 'base64');

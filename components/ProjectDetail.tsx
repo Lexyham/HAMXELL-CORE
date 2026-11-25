@@ -40,7 +40,16 @@ export default function ProjectDetail({ p }: { p: Product }) {
         <p className="mt-4 max-w-[54ch] text-body text-ink">{p.summary}</p>
         <Paragraphs text={p.description} />
         {p.launchUrl && (
-          <Magnetic as="span" className="mt-6 inline-block"><a href={p.launchUrl} target="_blank" rel="noopener noreferrer" className="inline-flex border border-brand-blue bg-brand-blue px-5 py-3 text-small font-medium hover:bg-transparent">Launch project</a></Magnetic>
+          <Magnetic as="span" className="mt-6 inline-block">
+            <a
+              href={p.launchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[44px] items-center border border-brand-blue bg-brand-blue px-5 py-3 text-small font-medium hover:bg-transparent"
+            >
+              Launch project
+            </a>
+          </Magnetic>
         )}
       </Reveal>
       <dl className="grid gap-4 self-start border-t border-line pt-5 lg:col-span-3 lg:col-start-10">

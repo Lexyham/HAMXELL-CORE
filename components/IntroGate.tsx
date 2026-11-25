@@ -6,15 +6,15 @@ import { prefersReducedMotion } from '@/lib/gsap';
 import { useIntro } from './IntroProvider';
 
 type Phase = 'playing' | 'exiting' | 'done';
-const TOTAL_MS = 8400;  // the animation in /brand/intro.svg ends at about 8.2 s
-const FADE_MS = 900;
-const HARD_LIMIT_MS = 16000; // safety net only: if the image never loads, do not leave the visitor on a black screen
+const TOTAL_MS = 6200;
+const FADE_MS = 500;
+const HARD_LIMIT_MS = 10000;
+const INTRO_SEEN_KEY = 'hamxell-intro-seen';
 
 /**
- * Landing intro: the animated SVG at /brand/intro.svg. It cannot be skipped or muted (it has no sound).
- * The overlay is part of the server-rendered HTML and the page behind it is hidden by CSS until the intro finishes,
- * so the homepage is never visible first. It plays on every fresh load of "/" and never on in-site navigation.
- * Visitors whose system asks for reduced motion do not see it.
+ * Landing intro: an optional, skippable animated SVG at /brand/intro.svg.
+ * First visits get the short introduction once per browser session; returning visits skip it.
+ * Reduced-motion users and keyboard users are never forced through the animation.
  */
 export default function IntroGate() {
   const pathname = usePathname();
@@ -25,8 +25,12 @@ export default function IntroGate() {
   const hard = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const exit = useCallback(() => {
-    setPhase((p) => (p === 'playing' ? 'exiting' : p));
-    markDone(); // page content animates in while the overlay fades out
+    setPhase((p) => {
+      if (p !== 'playing') return p;
+      try { sessionStorage.setItem(INTRO_SEEN_KEY, '1'); } catch {}
+      return 'exiting';
+    });
+    markDone();
   }, [markDone]);
 
   // The animation starts when the SVG loads, so the hand-off timer starts then too.
@@ -36,11 +40,20 @@ export default function IntroGate() {
 
   useEffect(() => {
     if (phase !== 'playing') return;
-    if (prefersReducedMotion()) { setPhase('done'); markDone(); return; }
+    let seen = false;
+    try { seen = sessionStorage.getItem(INTRO_SEEN_KEY) === '1'; } catch {}
+    if (seen || prefersReducedMotion()) { setPhase('done'); markDone(); return; }
     hard.current = setTimeout(exit, HARD_LIMIT_MS);
     if (img.current?.complete && img.current.naturalWidth > 0) arm(); // loaded before hydration
     return () => { clearTimeout(timer.current); clearTimeout(hard.current); timer.current = undefined; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') exit(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [phase, exit]);
 
   useEffect(() => {
     if (phase !== 'exiting') return;
@@ -68,6 +81,14 @@ export default function IntroGate() {
       className={`intro-gate fixed inset-0 z-[1000] touch-none select-none bg-black transition-opacity ease-out ${phase === 'exiting' ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
       style={{ transitionDuration: `${FADE_MS}ms` }}
     >
+      <button
+        type="button"
+        onClick={exit}
+        aria-label="Skip introduction"
+        className="absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-10 min-h-[44px] border border-line bg-bg/90 px-4 font-mono text-label uppercase text-ink backdrop-blur hover:border-brand-gold motion-reduce:transition-none"
+      >
+        Skip
+      </button>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={img}

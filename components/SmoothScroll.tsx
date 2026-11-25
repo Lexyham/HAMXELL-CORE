@@ -14,7 +14,10 @@ export default function SmoothScroll() {
 
   useEffect(() => {
     if (prefersReducedMotion()) return;
-    const l = new Lenis({ duration: 1.1, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+    const l = new Lenis({
+      duration: 1.1,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+    });
     lenis.current = l;
     l.on('scroll', ScrollTrigger.update);
     const tick = (time: number) => l.raf(time * 1000);
@@ -37,6 +40,7 @@ export default function SmoothScroll() {
 
   useEffect(() => {
     lenis.current?.scrollTo(0, { immediate: true });
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [pathname]);
 
   return null;

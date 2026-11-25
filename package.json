@@ -7,14 +7,16 @@
     "build": "next build",
     "start": "next build && next start",
     "typecheck": "tsc --noEmit",
-    "bootstrap-admin": "node --env-file=.env scripts/bootstrap-admin.mjs",
+    "bootstrap-admin": "node --env-file=.env.local scripts/bootstrap-admin.mjs",
     "serve": "next start",
     "keygen": "node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
-    "decrypt-backup": "node --env-file=.env scripts/decrypt-backup.mjs",
+    "decrypt-backup": "node --env-file=.env.local scripts/decrypt-backup.mjs",
     "worker": "tsx worker/index.ts",
-    "worker:local": "tsx --env-file=.env worker/index.ts",
-    "tidb:migrate": "tsx --env-file=.env scripts/tidb-migrate.ts",
-    "test:overflow": "node scripts/check-overflow.mjs"
+    "worker:local": "tsx --env-file=.env.local worker/index.ts",
+    "tidb:migrate": "tsx --env-file=.env.local scripts/tidb-migrate.ts",
+    "test:chat": "tsx --conditions=react-server tests/chat.test.ts",
+    "test:overflow": "node scripts/check-overflow.mjs",
+    "test:describe": "tsx --conditions=react-server tests/describe.test.ts"
   },
   "dependencies": {
     "next": "^14.2.0",

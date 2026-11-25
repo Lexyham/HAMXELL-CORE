@@ -1,7 +1,7 @@
 import { generate } from '@/lib/ai/client';
 import { flag } from '@/lib/flags';
 import { getDb, mongoConfigured } from '@/lib/db/mongo';
-import { answerPublic, type ChatLog } from '@/lib/rag/chat';
+import { answerPublic, CHAT_UNAVAILABLE, type ChatLog } from '@/lib/rag/chat';
 import { retrievePublic } from '@/lib/rag/corpus';
 import { rateLimit } from '@/lib/rate-limit';
 
@@ -38,6 +38,6 @@ export async function POST(req: Request) {
     return json(r.body, r.status);
   } catch (e) {
     console.error('chat failed', (e as Error).message);
-    return json({ error: 'The assistant is unavailable right now. Please use the contact page.' }, 503);
+    return json({ error: CHAT_UNAVAILABLE }, 503);
   }
 }

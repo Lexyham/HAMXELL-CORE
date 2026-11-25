@@ -1,7 +1,9 @@
 import 'server-only';
-import { listAllPublicDocs } from '../docs';
-import { listPublic } from '../projects';
-import { STATUS_LABEL, VISIBILITY_LABEL } from '../products';
+import { ABOUT } from '../../content/about';
+import { PROCESS, SERVICES, SKILLS, STACK } from '../../content/site';
+import { listAllPublicDocsForChat, type PublicCorpusDoc } from '../docs';
+import { listPublicForChat } from '../projects';
+import { CATEGORY_LABEL, STATUS_LABEL, VISIBILITY_LABEL, type Product } from '../products';
 import { Bm25 } from './bm25';
 import { chunkMarkdown, type Chunk } from './chunk';
 import { redactSecrets } from './safety';
@@ -20,23 +22,51 @@ const add = (out: Chunk[], base: Omit<Chunk, 'text' | 'id'>, md: string) => { fo
 const TTL_MS = 5 * 60_000;
 let cache: { at: number; corpus: Corpus } | null = null;
 
+/** Public products and published documentation of public projects only. */
+export function buildPublicCorpus(products: Product[], docs: PublicCorpusDoc[]): Corpus {
+  const out: Chunk[] = [];
+  add(out, { title: 'About HAMXELL CORE', url: '/about', kind: 'about' }, ABOUT.identity.join('\n\n'));
+  const capabilities = [
+    'These are publicly described services and areas of work, not a list of existing products.',
+    ...SERVICES.map((service) => `${service.title}: ${service.text} ${service.points.join('; ')}.`),
+    `Publicly described skills: ${SKILLS.join(', ')}.`,
+    `Technologies named on the homepage: ${STACK.join(', ')}.`,
+    `Public process: ${PROCESS.map((step) => `${step.title}: ${step.text}`).join(' ')}`,
+  ].join('\n\n');
+  add(out, { title: 'What HAMXELL CORE builds', url: '/', kind: 'capabilities' }, capabilities);
+  const publicProducts = products.filter((p) => !p.placeholder && p.visibility === 'public');
+  add(out, { title: 'Public product directory', url: '/products', kind: 'directory' }, publicProducts.length
+    ? `Current public directory listings:\n\n${publicProducts.map((p) => `${p.name} (${CATEGORY_LABEL[p.category ?? 'product']}; ${STATUS_LABEL[p.status]}): ${p.summary}`).join('\n\n')}`
+    : 'No individual product listings are currently available in the public directory.');
+  for (const p of publicProducts) {
+    const category = p.category ? CATEGORY_LABEL[p.category] : 'Product';
+    const facts = [`${p.name}. ${p.summary}`, `Category: ${category}.`, p.description ?? '', `Status: ${STATUS_LABEL[p.status]}.`, p.tags.length ? `Technology: ${p.tags.join(', ')}.` : '', p.licenceType ? `Licence: ${p.licenceType}.` : ''].filter(Boolean).join('\n\n');
+    add(out, { title: p.name, url: `/products/${p.slug}`, kind: 'product' }, facts);
+  }
+  add(out, { title: 'Public documentation directory', url: '/docs', kind: 'directory' }, docs.length
+    ? `Published documentation pages:\n\n${docs.map((d) => `${d.projectName}: ${d.title}`).join('\n\n')}`
+    : 'No published documentation pages are currently available in the public directory.');
+  for (const d of docs) add(out, { title: `${d.projectName}: ${d.title}`, url: `/docs/${d.slug}#${d.kind}`, kind: 'doc' }, d.md);
+  return build(out);
+}
+
 /** Public products and published documentation of public projects only. Cached for 5 minutes per server instance. */
 export async function getPublicCorpus(): Promise<Corpus> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.corpus;
-  const out: Chunk[] = [];
-  for (const p of await listPublic()) {
-    if (p.placeholder) continue; // placeholder entries are not real information
-    const facts = [`${p.name}. ${p.summary}`, p.description ?? '', `Status: ${STATUS_LABEL[p.status]}.`, p.tags.length ? `Technology: ${p.tags.join(', ')}.` : '', p.licenceType ? `Licence: ${p.licenceType}.` : ''].filter(Boolean).join('\n\n');
-    add(out, { title: p.name, url: `/products/${p.slug}`, kind: 'product' }, facts);
-  }
-  for (const d of await listAllPublicDocs()) add(out, { title: `${d.projectName}: ${d.title}`, url: `/docs/${d.slug}#${d.kind}`, kind: 'doc' }, d.md);
-  cache = { at: Date.now(), corpus: build(out) };
+  const [products, docs] = await Promise.all([listPublicForChat(), listAllPublicDocsForChat()]);
+  const corpus = buildPublicCorpus(products, docs);
+  cache = { at: Date.now(), corpus };
   return cache.corpus;
 }
 
 export async function retrievePublic(question: string, k = 5): Promise<Chunk[]> {
   const c = await getPublicCorpus();
-  return c.index.search(question, k).map((h) => c.byId.get(h.id)!).filter(Boolean);
+  const matches = c.index.search(question, k).map((h) => c.byId.get(h.id)!).filter(Boolean);
+  const context = c.chunks.filter((chunk) => chunk.kind === 'about' || chunk.kind === 'capabilities');
+  const missingContext = context
+    .filter((chunk) => !matches.some((match) => match.id === chunk.id))
+    .map((chunk) => ({ ...chunk, contextOnly: true }));
+  return [...matches, ...missingContext];
 }
 
 /* --------------------- private (admin Knowledge Engine) ---------------------- */

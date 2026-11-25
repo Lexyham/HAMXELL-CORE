@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders } from 'node:http';
-import type { Finding } from './audit';
 import type { SiteCrawl } from './crawl';
+import type { SiteDescription } from './describe';
 import type { RepoFacts } from './github';
 
 export interface TechHit { name: string; evidence: string }
@@ -28,15 +28,13 @@ export interface ImportResult {
   tech: TechHit[];
   notes: string[];
   files: Record<string, string>;
-  /** Added by the multi-page audit (schema 2). Older stored imports do not have these. */
+  /** Added by the multi-page crawl (schema 2). Older stored imports do not have these. */
   schema?: 2;
   crawl?: SiteCrawl;
-  findings?: Finding[];
-  reportMd?: string;
   repo?: RepoFacts;
   repoError?: string;
-  aiNarrative?: { summary: string; conclusion: string; provider: string; model: string; at: string };
-  aiSummary?: { text: string; provider: string; model: string; at: string }; // legacy
+  /** The written description of the site, produced silently after the crawl. */
+  description?: SiteDescription;
 }
 
 const ENT: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ' };

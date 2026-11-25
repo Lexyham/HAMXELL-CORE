@@ -1,4 +1,5 @@
 import type { IncomingHttpHeaders } from 'node:http';
+import { extractContent, type PageContent } from './content';
 import { extractFacts, sameSite, type Facts } from './facts';
 import { CrawlError, robotsAllows, robotsSitemaps, type FetchOpts, type Fetched } from './safe-fetch';
 
@@ -21,6 +22,8 @@ export interface SiteCrawl {
   internalLinksFound: number;
   truncatedCrawl: boolean;
   limits: { maxPages: number; linkChecks: number };
+  /** What each fetched page says (headings, excerpts, calls to action). Absent on imports made before descriptions existed. */
+  content?: PageContent[];
 }
 
 export interface CrawlDeps {
@@ -78,6 +81,7 @@ export async function crawlSite(start: string, d: CrawlDeps): Promise<{ crawl: S
   if (!isHtml(homeRaw.headers)) throw new CrawlError(`Expected an HTML page but received ${String(homeRaw.headers['content-type'] ?? 'an unknown content type')}.`);
   const facts = extractFacts(homeRaw.body, homeRaw.url);
   const pages: PageAudit[] = [pageRow(start, homeRaw, homeMs, facts)];
+  const content: PageContent[] = [extractContent(homeRaw.body, homeRaw.url)];
 
   // candidate internal pages: navigation first, then every other internal link
   const homeKey = key(homeRaw.url);
@@ -96,7 +100,9 @@ export async function crawlSite(start: string, d: CrawlDeps): Promise<{ crawl: S
     const t = now();
     try {
       const f = await d.fetch(u);
-      pages.push(pageRow(u, f, now() - t, f.status < 400 && isHtml(f.headers) ? extractFacts(f.body, f.url) : null));
+      const okHtml = f.status < 400 && isHtml(f.headers);
+      pages.push(pageRow(u, f, now() - t, okHtml ? extractFacts(f.body, f.url) : null));
+      if (okHtml) content.push(extractContent(f.body, f.url));
     } catch (e) {
       pages.push({ url: u, finalUrl: u, status: 0, ms: now() - t, bytes: 0, contentType: '', title: '', description: '', h1: 0, words: 0, canonical: '', noindex: false, imagesMissingAlt: 0, error: e instanceof CrawlError ? e.message : 'could not be fetched' });
     }
@@ -133,7 +139,7 @@ export async function crawlSite(start: string, d: CrawlDeps): Promise<{ crawl: S
     crawl: {
       sourceUrl: start, finalUrl: homeRaw.url, fetchedAt: new Date(t0).toISOString(), redirected: key(start) !== key(homeRaw.url) || s0.protocol !== new URL(homeRaw.url).protocol,
       home: { facts, headers: homeRaw.headers, status: homeRaw.status, ms: homeMs, truncated: homeRaw.truncated },
-      pages, robots, sitemap, compression, linkChecks: checks, internalLinksFound: candidates.length, truncatedCrawl, limits: { maxPages, linkChecks },
+      pages, robots, sitemap, compression, linkChecks: checks, internalLinksFound: candidates.length, truncatedCrawl, limits: { maxPages, linkChecks }, content,
     },
   };
 }

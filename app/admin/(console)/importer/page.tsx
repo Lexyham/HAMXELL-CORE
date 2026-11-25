@@ -20,7 +20,7 @@ export default async function ImporterPage({ searchParams }: { searchParams: { e
     <div className="max-w-[48rem]">
       <h1 className="text-h1 font-semibold">Project importer</h1>
       <p className="mt-3 max-w-[56ch] text-small text-ink-muted">
-        Audit a public website and write a full report: an executive summary, scope and method, about fifty checks across content, search visibility, accessibility, performance, security and crawlability, a page inventory, a prioritised findings register and recommendations. Optionally add a public GitHub repository for a repository section. Back-end logic and private systems cannot be assessed from a public address.
+        Enter a public website. It is reviewed quietly in the background, and you get a written description of what the site is, what it offers, how it appears to be built and how well it is run. Optionally add a public GitHub repository. Back-end logic and private systems cannot be seen from a public address.
       </p>
 
       <form action={analyzeUrl} className="mt-6">
@@ -31,7 +31,7 @@ export default async function ImporterPage({ searchParams }: { searchParams: { e
         </div>
         <label htmlFor="repo" className="mt-5 block font-mono text-label uppercase text-ink-muted">GitHub repository (optional)</label>
         <input id="repo" name="repo" placeholder="owner/name or https://github.com/owner/name" className="mt-2 w-full border border-line bg-bg-secondary px-3 py-3 text-body focus:border-brand-blue focus:outline-none" />
-        <p className="mt-1 text-small text-ink-muted">Public repositories only. Adds a repository section to the report from GitHub metadata and the root file listing; source code is not read.</p>
+        <p className="mt-1 text-small text-ink-muted">Public repositories only. Adds the repository's description, languages and licence to the write-up from GitHub metadata and the root file listing; source code is not read.</p>
         {searchParams.error && <p role="alert" className="mt-3 text-small text-danger">{searchParams.error}</p>}
         <p className="mt-3 text-small text-ink-muted">Public http(s) pages only. Private networks are blocked, robots.txt is respected, 10 second timeout, 5 MB limit.</p>
       </form>

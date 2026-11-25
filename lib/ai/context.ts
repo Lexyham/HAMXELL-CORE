@@ -27,6 +27,7 @@ export function projectContext(p: Product, imp?: ImportResult | null): string {
       `Inferred features: ${imp.features.join('; ') || 'none'}`,
       `Inferred technology: ${imp.tech.map((t) => t.name).join(', ') || 'none'}`,
     );
+    if (imp.description) lines.push('', 'Description of the site, written from its public pages [inferred]:', imp.description.text);
   }
   return lines.join('\n');
 }

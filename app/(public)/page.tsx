@@ -15,7 +15,7 @@ const GLANCE = [
   { label: 'Licensing', value: 'Per project', detail: 'Terms published alongside each product' },
 ];
 const STAIR = ['', 'lg:ml-[14%]', 'lg:ml-[28%]'];
-const btn = 'inline-flex items-center border px-5 py-3 text-small font-medium transition-colors duration-200 ease-out';
+const btn = 'inline-flex min-h-[44px] items-center border px-5 py-3 text-small font-medium transition-colors duration-200 ease-out';
 const chip = 'border border-line px-3 py-2 font-mono text-small text-ink-muted transition-colors duration-200 hover:border-brand-blue hover:text-ink';
 
 export default async function HomePage() {

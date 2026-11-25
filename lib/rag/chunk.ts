@@ -3,7 +3,8 @@ export interface Chunk {
   title: string;
   url: string;
   text: string;
-  kind: 'product' | 'doc' | 'project' | 'infra' | 'deployment' | 'domain';
+  kind: 'about' | 'capabilities' | 'directory' | 'product' | 'doc' | 'project' | 'infra' | 'deployment' | 'domain';
+  contextOnly?: boolean;
 }
 
 const sentences = (s: string) => s.split(/(?<=[.!?])\s+/);

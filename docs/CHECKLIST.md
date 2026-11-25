@@ -21,7 +21,7 @@ Everything here was tested **offline** with fakes and a headless browser. Nothin
 
 ```
 npm install
-cp env.example .env                  # fill it in (section 0)
+cp env.example .env.local            # fill it in (section 0)
 # Supabase SQL editor, in this exact order:
 #   supabase/migrations/0001 ... 0010
 npm run bootstrap-admin              # creates the first owner
@@ -49,18 +49,20 @@ npm run test:overflow                # with the site running
 - [ ] Six wrong passwords in 15 minutes lock sign-in; the attempts appear in Activity.
 - [ ] Add a gate password to the warning project: visitors must tick the box **and** enter it; a wrong one is refused.
 
-### Phase 3: importer (website audit)
-- [ ] Admin > Importer. Audit a site you control. Wait up to a minute.
-- [ ] The report opens in the page: executive summary, scope, site profile, findings by area, page inventory, register, recommendations, conclusion, appendices.
-- [ ] Download it as PDF, HTML and Markdown. Read the PDF: tables should not have broken words.
+### Phase 3: importer (website description)
+- [ ] Admin > Importer. Enter a site you control. Wait up to a minute.
+- [ ] The result page opens on **About this website**: a tagline and five or six paragraphs describing what the site is, what it offers, how it appears to be built and how well it is run. It should not read like an audit and should not claim anything the site does not show. Read it against the real site and note any invented detail.
+- [ ] There is no audit report, findings list or download on the page. That is intended.
+- [ ] With every AI key removed, run the importer again: the description is still written, labelled "Assembled automatically", with the reason shown. "Write again" after restoring a key replaces it with an AI-written one.
+- [ ] Run `npm run test:describe`. It should print a sample fallback description and "ALL DESCRIPTION TESTS PASSED". (Needs the `server-only` package's `react-server` condition, which the script sets; if it errors on that import, tell me.)
 - [ ] Try `http://localhost` and `http://169.254.169.254`: both refused.
-- [ ] Add a public GitHub repository: a Repository section appears. A wrong name gives a note, not a failed audit.
+- [ ] Add a public GitHub repository: the description mentions the repository (languages, licence). A wrong name shows a note under the description, not a failed import.
 - [ ] "Create private draft project" makes a private, in-development project.
 
 ### Phase 4: AI documentation
 - [ ] Project > Documentation > Generate. Four AI drafts appear, labelled "AI draft".
 - [ ] Remove the first provider's key and generate again: it falls back to the next provider.
-- [ ] On an importer result, "Add AI-written summary" adds a labelled summary and closing note.
+- [ ] On an importer result, "Write again" replaces the description with a fresh one and the label shows which provider wrote it.
 - [ ] Calls are recorded (MongoDB `raw_ai_responses`, or Supabase `ai_call_logs`).
 
 ### Phase 5: documentation studio, reader, exports, history

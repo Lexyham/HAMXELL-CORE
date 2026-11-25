@@ -43,7 +43,7 @@ export default function LoginForm({ configured }: { configured: boolean }) {
   };
 
   if (!configured) {
-    return <p className="border border-line p-5 text-small text-ink-muted">Supabase is not configured. Add the keys to .env and restart.</p>;
+    return <p className="border border-line p-5 text-small text-ink-muted">Supabase is not configured. Add the keys to .env.local and restart.</p>;
   }
 
   return (

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BOOTSTRAP_ADMIN_EMAIL: email, BOOTSTRAP_ADMIN_PASSWORD: password } = process.env;
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !email || !password) {
-  console.error('Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD in .env');
+  console.error('Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD in .env.local');
   process.exit(1);
 }
 if (password.length < 12) {
