@@ -117,11 +117,6 @@ a {
   }
 }
 
-/* intro: while it plays, the whole page is hidden so it can never show through, whatever the screen size */
-body:has(.intro-gate[data-phase='playing']) #site {
-  visibility: hidden;
-}
-
 /* intro + reveal states */
 [data-reveal],
 [data-reveal-stagger] > * {

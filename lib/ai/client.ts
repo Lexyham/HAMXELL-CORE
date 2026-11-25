@@ -20,7 +20,8 @@ export async function generate(req: AiRequest): Promise<AiResponse> {
   assertNoSecrets(req.system);
   assertNoSecrets(req.prompt);
   const maxTokens = clamp(req.maxTokens ?? 2048);
-  const timeout = Number(process.env.AI_TIMEOUT_MS ?? 60000);
+  const taskTimeouts: Record<Task, number> = { docs: 30000, import_summary: 30000, chatbot: 20000, knowledge: 25000 };
+  const timeout = Number(process.env.AI_TIMEOUT_MS ?? taskTimeouts[req.task]);
   const attempts: Attempt[] = [];
   const started = Date.now();
 
@@ -36,7 +37,7 @@ export async function generate(req: AiRequest): Promise<AiResponse> {
       const r = await CALL[provider]({ system: req.system, prompt: req.prompt, maxTokens, signal: ctl.signal });
       if (!r.text.trim()) throw new Error('empty response');
       const out: AiResponse = { text: r.text.trim(), provider, model: r.model, ms: Date.now() - t0, inputTokens: r.inputTokens, outputTokens: r.outputTokens, attempts };
-      await logAiCall({ task: req.task, provider, model: r.model, promptVersion: req.promptVersion, status: 'ok', ms: out.ms, inputTokens: r.inputTokens, outputTokens: r.outputTokens, responseChars: out.text.length, attempts, actorId: req.actorId, response: out.text });
+      void logAiCall({ task: req.task, provider, model: r.model, promptVersion: req.promptVersion, status: 'ok', ms: out.ms, inputTokens: r.inputTokens, outputTokens: r.outputTokens, responseChars: out.text.length, attempts, actorId: req.actorId, response: out.text });
       return out;
     } catch (e) {
       const msg = (e as Error).name === 'AbortError' ? 'timed out' : (e as Error).message;
@@ -46,7 +47,7 @@ export async function generate(req: AiRequest): Promise<AiResponse> {
     }
   }
 
-  await logAiCall({ task: req.task, provider: null, model: null, promptVersion: req.promptVersion, status: 'error', ms: Date.now() - started, inputTokens: null, outputTokens: null, responseChars: 0, attempts, actorId: req.actorId });
+  void logAiCall({ task: req.task, provider: null, model: null, promptVersion: req.promptVersion, status: 'error', ms: Date.now() - started, inputTokens: null, outputTokens: null, responseChars: 0, attempts, actorId: req.actorId });
   const usable = ROUTES[req.task].filter(isConfigured);
   throw new AiError(
     usable.length === 0

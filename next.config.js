@@ -18,6 +18,8 @@ const nextConfig = {
       { source: '/p/:path*', headers: noindex },
       { source: '/u/:path*', headers: noindex },
       { source: '/admin/:path*', headers: [...noindex, { key: 'Cache-Control', value: 'no-store' }] },
+      { source: '/_next/static/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
+      { source: '/brand/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }] },
     ];
   },
 };

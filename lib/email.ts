@@ -21,7 +21,7 @@ export async function sendEmail(to: Party, mail: Mail, replyTo?: Party): Promise
         textContent: mail.text,
         htmlContent: mail.html,
       }),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(5_000),
       cache: 'no-store',
     });
     if (res.ok) return { ok: true };

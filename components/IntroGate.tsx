@@ -6,9 +6,9 @@ import { prefersReducedMotion } from '@/lib/gsap';
 import { useIntro } from './IntroProvider';
 
 type Phase = 'playing' | 'exiting' | 'done';
-const TOTAL_MS = 6200;
-const FADE_MS = 500;
-const HARD_LIMIT_MS = 10000;
+const TOTAL_MS = 4200;
+const FADE_MS = 300;
+const HARD_LIMIT_MS = 7000;
 const INTRO_SEEN_KEY = 'hamxell-intro-seen';
 
 /**

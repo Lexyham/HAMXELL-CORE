@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export default async function ProjectsAdminPage() {
   await requireAdmin();
-  const { data } = await createClient().from('projects').select('*').order('updated_at', { ascending: false });
+  const { data } = await createClient().from('projects').select('id, slug, name, status, visibility, updated_at').order('updated_at', { ascending: false }).limit(200);
   const projects = (data ?? []).map(fromRow);
 
   return (

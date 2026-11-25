@@ -37,14 +37,16 @@ export async function submitEnquiry(p: EnquiryPayload): Promise<{ ok: true } | {
   if (emailConfigured()) {
     const adminTo = process.env.BREVO_ADMIN_NOTIFY_EMAIL;
     const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
-    const [ack, note] = await Promise.all([
-      sendEmail({ email: v.value.email, name: v.value.name }, ackEmail(v.value), adminTo ? { email: adminTo } : undefined),
-      adminTo ? sendEmail({ email: adminTo }, notifyEmail(v.value, data.id, appUrl), { email: v.value.email, name: v.value.name }) : Promise.resolve({ ok: false as const, error: 'BREVO_ADMIN_NOTIFY_EMAIL is not set.' }),
-    ]);
-    const errors = [!ack.ok && `acknowledgement: ${ack.error}`, !note.ok && `notification: ${note.error}`].filter(Boolean).join(' | ');
-    await sb.from('enquiries').update({ ack_sent_at: ack.ok ? new Date().toISOString() : null, notified_at: note.ok ? new Date().toISOString() : null, email_error: errors || null }).eq('id', data.id);
+    void (async () => {
+      const [ack, note] = await Promise.all([
+        sendEmail({ email: v.value.email, name: v.value.name }, ackEmail(v.value), adminTo ? { email: adminTo } : undefined),
+        adminTo ? sendEmail({ email: adminTo }, notifyEmail(v.value, data.id, appUrl), { email: v.value.email, name: v.value.name }) : Promise.resolve({ ok: false as const, error: 'BREVO_ADMIN_NOTIFY_EMAIL is not set.' }),
+      ]);
+      const errors = [!ack.ok && `acknowledgement: ${ack.error}`, !note.ok && `notification: ${note.error}`].filter(Boolean).join(' | ');
+      await sb.from('enquiries').update({ ack_sent_at: ack.ok ? new Date().toISOString() : null, notified_at: note.ok ? new Date().toISOString() : null, email_error: errors || null }).eq('id', data.id);
+    })();
   } else {
-    await sb.from('enquiries').update({ email_error: 'Email is not configured.' }).eq('id', data.id);
+    void sb.from('enquiries').update({ email_error: 'Email is not configured.' }).eq('id', data.id);
   }
   return { ok: true };
 }
