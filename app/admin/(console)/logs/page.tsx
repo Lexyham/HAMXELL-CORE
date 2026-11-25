@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export default async function LogsPage() {
   await requireAdmin();
-  const { data } = await createClient().from('activity_logs').select('id, action, actor_email, entity, entity_id, meta, created_at').order('created_at', { ascending: false }).limit(200);
+  const { data } = await createClient().from('activity_logs').select('id, action, actor_email, entity, entity_id, meta, ip, created_at').order('created_at', { ascending: false }).limit(200);
   return (
     <div className="max-w-[64rem]">
       <h1 className="text-h1 font-semibold">Activity</h1>
