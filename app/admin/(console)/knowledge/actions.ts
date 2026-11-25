@@ -25,7 +25,7 @@ export async function askKnowledge(question: string, history: Turn[]): Promise<K
 
   const turns = (Array.isArray(history) ? history : []).filter((t) => (t?.role === 'user' || t?.role === 'assistant') && typeof t.content === 'string').slice(-6).map((t) => ({ role: t.role, content: t.content.slice(0, 1500) })) as Turn[];
 
-  const corpus = await buildAdminCorpus(createClient());
+  const corpus = await buildAdminCorpus(createClient(), user.id);
   const hits = corpus.index.search(q, 8).map((h) => corpus.byId.get(h.id)!).filter(Boolean);
   await logActivity({ actorId: user.id, actorEmail: email, action: 'knowledge.ask', meta: { sources: hits.length, chars: q.length } }); // the question text is not logged
   if (hits.length === 0) {

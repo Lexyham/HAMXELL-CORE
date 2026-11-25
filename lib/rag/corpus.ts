@@ -11,6 +11,9 @@ import { redactSecrets } from './safety';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface Corpus { chunks: Chunk[]; index: Bm25; byId: Map<string, Chunk> }
 
+const privateCorpusCache = new Map<string, { at: number; corpus: Corpus }>();
+const PRIVATE_CORPUS_TTL_MS = 60_000;
+
 function build(raw: Chunk[]): Corpus {
   // Every chunk is secret-redacted before it can reach an index or a prompt.
   const chunks = raw.map((c, i) => ({ ...c, id: `${c.url}~${i}`, text: redactSecrets(c.text).text }));
@@ -75,7 +78,11 @@ export async function retrievePublic(question: string, k = 5): Promise<Chunk[]> 
  * recent deployments and domains. `sb` is the admin's own session client, so database policies apply (editors cannot read infrastructure notes).
  * Identity fields of the infrastructure record are excluded, and nothing here reads the credentials vault.
  */
-export async function buildAdminCorpus(sb: any): Promise<Corpus> {
+export async function buildAdminCorpus(sb: any, cacheKey?: string): Promise<Corpus> {
+  if (cacheKey) {
+    const cached = privateCorpusCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < PRIVATE_CORPUS_TTL_MS) return cached.corpus;
+  }
   const [projects, docs, infra, deps, domains] = await Promise.all([
     sb.from('projects').select('*'),
     sb.from('documentation_docs').select('project_id, kind, title, content_md, status'),
@@ -100,5 +107,13 @@ export async function buildAdminCorpus(sb: any): Promise<Corpus> {
   for (const d of deps.data ?? []) (byProject.get(d.project_id) ?? byProject.set(d.project_id, []).get(d.project_id)!).push(`${d.version} to ${d.environment} on ${new Date(d.deployed_at).toISOString().slice(0, 10)}: ${d.status}${d.platform ? ` (${d.platform})` : ''}`);
   for (const [pid, lines] of byProject) add(out, { title: `${name.get(pid) ?? 'Project'}: deployments`, url: '/admin/deployments', kind: 'deployment' }, `Recent deployments:\n\n${lines.map((l) => `- ${l}`).join('\n')}`);
   for (const d of domains.data ?? []) add(out, { title: `Domain ${d.domain}`, url: '/admin/domains', kind: 'domain' }, `${d.domain}${d.project_id ? ` belongs to ${name.get(d.project_id) ?? 'a project'}` : ''}. Registrar: ${d.registrar ?? 'not recorded'}. Host: ${d.host ?? 'not recorded'}. Expires: ${d.expires_on ?? 'not recorded'}. Auto-renew: ${d.auto_renew ? 'yes' : 'no'}.`);
-  return build(out);
+  const corpus = build(out);
+  if (cacheKey) {
+    if (privateCorpusCache.size >= 500) {
+      const cutoff = Date.now() - PRIVATE_CORPUS_TTL_MS;
+      for (const [key, entry] of privateCorpusCache) if (entry.at < cutoff) privateCorpusCache.delete(key);
+    }
+    privateCorpusCache.set(cacheKey, { at: Date.now(), corpus });
+  }
+  return corpus;
 }
