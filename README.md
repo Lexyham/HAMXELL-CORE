@@ -8,7 +8,7 @@ Next.js 14 (App Router), TypeScript, Tailwind CSS mapped to design tokens, Supab
 ## Quick start
 ```
 npm install
-cp env.example .env.local        # fill in what you have; the public site runs with no keys
+cp .env.example .env.local       # fill in what you have; the public site runs with no keys
 npm run dev                      # development
 npm start                        # production build, then serve (use npm run serve after a build)
 ```

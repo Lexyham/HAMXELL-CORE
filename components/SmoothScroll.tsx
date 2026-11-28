@@ -6,10 +6,10 @@ import { useEffect, useRef } from 'react';
 import { gsap, prefersReducedMotion, ScrollTrigger } from '@/lib/gsap';
 import { useIntro } from './IntroProvider';
 
-/** Lenis momentum scrolling, driven by the GSAP ticker so ScrollTrigger stays in sync. Locked during the intro. */
+/** Lenis momentum scrolling, driven by the GSAP ticker so ScrollTrigger stays in sync. */
 export default function SmoothScroll() {
-  const { introDone } = useIntro();
   const pathname = usePathname();
+  const { introDone } = useIntro();
   const lenis = useRef<Lenis | null>(null);
 
   useEffect(() => {
@@ -42,6 +42,7 @@ export default function SmoothScroll() {
   useEffect(() => {
     lenis.current?.scrollTo(0, { immediate: true });
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    ScrollTrigger.refresh();
   }, [pathname]);
 
   return null;

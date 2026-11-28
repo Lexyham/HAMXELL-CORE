@@ -16,7 +16,9 @@
     "tidb:migrate": "tsx --env-file=.env.local scripts/tidb-migrate.ts",
     "test:chat": "tsx --conditions=react-server tests/chat.test.ts",
     "test:overflow": "node scripts/check-overflow.mjs",
-    "test:describe": "tsx --conditions=react-server tests/describe.test.ts"
+    "test:describe": "tsx --conditions=react-server tests/describe.test.ts",
+    "test:batch-a": "tsx --conditions=react-server tests/batch-a.test.ts",
+    "test:intro": "node scripts/check-intro.mjs"
   },
   "dependencies": {
     "next": "^14.2.0",

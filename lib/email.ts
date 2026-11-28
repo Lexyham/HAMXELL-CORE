@@ -6,7 +6,7 @@ export const emailConfigured = () => Boolean(process.env.BREVO_API_KEY && proces
 interface Party { email: string; name?: string }
 
 /** Sends one transactional email through Brevo (POST /v3/smtp/email). The sender address must be verified in Brevo. Never throws. */
-export async function sendEmail(to: Party, mail: Mail, replyTo?: Party): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function sendEmail(to: Party, mail: Mail, replyTo?: Party): Promise<{ ok: true } | { ok: false; error: string; retryable?: boolean }> {
   if (!emailConfigured()) return { ok: false, error: 'Email is not configured (BREVO_API_KEY, BREVO_SENDER_EMAIL).' };
   const party = (p: Party) => ({ email: oneLine(p.email), ...(p.name ? { name: oneLine(p.name).slice(0, 100) } : {}) });
   try {
@@ -27,7 +27,7 @@ export async function sendEmail(to: Party, mail: Mail, replyTo?: Party): Promise
     if (res.ok) return { ok: true };
     let detail = '';
     try { detail = oneLine(String(((await res.json()) as { message?: string }).message ?? '')).slice(0, 160); } catch { /* no body */ }
-    return { ok: false, error: `Brevo responded ${res.status}${detail ? `: ${detail}` : ''}` };
+    return { ok: false, error: `Brevo responded ${res.status}${detail ? `: ${detail}` : ''}`, retryable: res.status === 429 };
   } catch (e) {
     return { ok: false, error: (e as Error).name === 'TimeoutError' ? 'Brevo did not respond in time.' : 'Could not reach Brevo.' };
   }

@@ -3,8 +3,9 @@
 import { redirect } from 'next/navigation';
 import { logActivity } from '@/lib/activity';
 import { requireAdmin } from '@/lib/auth';
-import { sendEmail, emailConfigured } from '@/lib/email';
+import { sendEmail } from '@/lib/email';
 import { ackEmail, notifyEmail } from '@/lib/email-templates';
+import { deliverEnquiryEmails, EMAIL_DELIVERY_PENDING } from '@/lib/enquiry-delivery';
 import { createClient } from '@/lib/supabase/server';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,27 +31,36 @@ export async function resendEmails(fd: FormData) {
   const id = String(fd.get('id') ?? '');
   const back = (q: string): never => redirect(`/admin/enquiries/${id}?${q}`);
   if (!UUID.test(id)) redirect('/admin/enquiries');
-  if (!emailConfigured()) back(`error=${encodeURIComponent('Email is not configured (BREVO_API_KEY, BREVO_SENDER_EMAIL).')}`);
   const sb = createClient();
   const { data: e } = await sb.from('enquiries').select('*').eq('id', id).maybeSingle();
   if (!e) redirect('/admin/enquiries');
+  if (e.ack_sent_at && e.notified_at) back(`ok=${encodeURIComponent('Both emails are already marked sent.')}`);
+  const updatedAt = Date.parse(e.updated_at);
+  if (e.email_error === EMAIL_DELIVERY_PENDING && Number.isFinite(updatedAt) && Date.now() - updatedAt < 120_000) {
+    back(`error=${encodeURIComponent('An email delivery attempt is already in progress. Refresh the page before retrying.')}`);
+  }
+  const { data: claimed, error: claimError } = await sb.from('enquiries')
+    .update({ email_error: EMAIL_DELIVERY_PENDING })
+    .eq('id', id)
+    .eq('updated_at', e.updated_at)
+    .select('id')
+    .maybeSingle();
+  if (claimError || !claimed) back(`error=${encodeURIComponent('Another email delivery attempt may be in progress. Refresh the page before retrying.')}`);
   const v = { name: e!.name as string, email: e!.email as string, subject: e!.subject as string, message: e!.message as string };
   const adminTo = process.env.BREVO_ADMIN_NOTIFY_EMAIL;
-  const errors: string[] = [];
-  const patch: Record<string, unknown> = {};
-  if (!e!.ack_sent_at) {
-    const r = await sendEmail({ email: v.email, name: v.name }, ackEmail(v), adminTo ? { email: adminTo } : undefined);
-    if (r.ok) patch.ack_sent_at = new Date().toISOString(); else errors.push(`acknowledgement: ${r.error}`);
-  }
-  if (!e!.notified_at) {
-    if (!adminTo) errors.push('notification: BREVO_ADMIN_NOTIFY_EMAIL is not set.');
-    else {
-      const r = await sendEmail({ email: adminTo }, notifyEmail(v, id, process.env.APP_URL ?? 'http://localhost:3000'), { email: v.email, name: v.name });
-      if (r.ok) patch.notified_at = new Date().toISOString(); else errors.push(`notification: ${r.error}`);
-    }
-  }
-  patch.email_error = errors.join(' | ') || null;
-  await sb.from('enquiries').update(patch).eq('id', id);
+  const delivery = await deliverEnquiryEmails({
+    ackSentAt: e!.ack_sent_at,
+    notifiedAt: e!.notified_at,
+    sendAcknowledgement: () => sendEmail({ email: v.email, name: v.name }, ackEmail(v), adminTo ? { email: adminTo } : undefined),
+    sendNotification: () => adminTo
+      ? sendEmail({ email: adminTo }, notifyEmail(v, id, process.env.APP_URL ?? 'http://localhost:3000'), { email: v.email, name: v.name })
+      : Promise.resolve({ ok: false as const, error: 'BREVO_ADMIN_NOTIFY_EMAIL is not set.' }),
+    persist: async (patch) => {
+      const { error } = await sb.from('enquiries').update(patch).eq('id', id);
+      return error?.message ?? null;
+    },
+  });
+  const errors = delivery.errors;
   await logActivity({ actorId: user.id, actorEmail: email, action: 'enquiry.resend_emails', entity: 'enquiry', entityId: id, meta: { failed: errors.length } });
   back(errors.length ? `error=${encodeURIComponent(errors.join(' | '))}` : `ok=${encodeURIComponent('Emails sent.')}`);
 }

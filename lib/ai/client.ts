@@ -2,6 +2,7 @@ import 'server-only';
 import { assertNoSecrets } from './context';
 import { logAiCall } from './log';
 import { CALL, isConfigured, MODELS } from './providers';
+import { REQUEST_DEADLINES, resolveProviderTimeout, runProviderFallback } from './timeouts';
 import { AiError, type AiRequest, type AiResponse, type Attempt, type Provider, type Task } from './types';
 
 /** Per-task provider order (spec section 10). Chatbot and knowledge routes are wired now and used in Phase 10. */
@@ -20,41 +21,47 @@ export async function generate(req: AiRequest): Promise<AiResponse> {
   assertNoSecrets(req.system);
   assertNoSecrets(req.prompt);
   const maxTokens = clamp(req.maxTokens ?? 2048);
-  const taskTimeouts: Record<Task, number> = { docs: 30000, import_summary: 30000, chatbot: 20000, knowledge: 25000 };
-  const timeout = Number(process.env.AI_TIMEOUT_MS ?? taskTimeouts[req.task]);
-  const attempts: Attempt[] = [];
+  const timeout = resolveProviderTimeout(req.task);
+  const configured = ROUTES[req.task].filter(isConfigured);
   const started = Date.now();
+  const providerStarted = new Map<Provider, number>();
 
-  for (const provider of ROUTES[req.task]) {
-    if (!isConfigured(provider)) {
-      attempts.push({ provider, error: 'not configured' });
-      continue;
+  try {
+    const result = await runProviderFallback({
+      providers: ROUTES[req.task],
+      configured,
+      providerTimeoutMs: timeout,
+      totalTimeoutMs: REQUEST_DEADLINES[req.task],
+      call: (provider, signal) => {
+        providerStarted.set(provider, Date.now());
+        return CALL[provider]({ system: req.system, prompt: req.prompt, maxTokens, signal });
+      },
+      isUsable: (response) => Boolean(response.text.trim()),
+    });
+    const { provider, value, attempts } = result;
+    const out: AiResponse = {
+      text: value.text.trim(),
+      provider,
+      model: value.model,
+      ms: Date.now() - (providerStarted.get(provider) ?? started),
+      inputTokens: value.inputTokens,
+      outputTokens: value.outputTokens,
+      attempts,
+    };
+    void logAiCall({ task: req.task, provider, model: value.model, promptVersion: req.promptVersion, status: 'ok', ms: out.ms, inputTokens: value.inputTokens, outputTokens: value.outputTokens, responseChars: out.text.length, attempts, actorId: req.actorId, response: out.text });
+    return out;
+  } catch (error) {
+    const attempts: Attempt[] = error instanceof AiError ? error.attempts : [];
+    void logAiCall({ task: req.task, provider: null, model: null, promptVersion: req.promptVersion, status: 'error', ms: Date.now() - started, inputTokens: null, outputTokens: null, responseChars: 0, attempts, actorId: req.actorId });
+    if (configured.length === 0) {
+      throw new AiError(
+        `No AI provider is configured for this task. Set one of: ${ROUTES[req.task].map((p) => p.toUpperCase() + '_API_KEY').join(', ')}.`,
+        attempts,
+      );
     }
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), timeout);
-    const t0 = Date.now();
-    try {
-      const r = await CALL[provider]({ system: req.system, prompt: req.prompt, maxTokens, signal: ctl.signal });
-      if (!r.text.trim()) throw new Error('empty response');
-      const out: AiResponse = { text: r.text.trim(), provider, model: r.model, ms: Date.now() - t0, inputTokens: r.inputTokens, outputTokens: r.outputTokens, attempts };
-      void logAiCall({ task: req.task, provider, model: r.model, promptVersion: req.promptVersion, status: 'ok', ms: out.ms, inputTokens: r.inputTokens, outputTokens: r.outputTokens, responseChars: out.text.length, attempts, actorId: req.actorId, response: out.text });
-      return out;
-    } catch (e) {
-      const msg = (e as Error).name === 'AbortError' ? 'timed out' : (e as Error).message;
-      attempts.push({ provider, error: msg });
-    } finally {
-      clearTimeout(timer);
-    }
+    if (error instanceof AiError) throw error;
+    throw new AiError('All AI providers failed. Try again shortly.', attempts);
   }
-
-  void logAiCall({ task: req.task, provider: null, model: null, promptVersion: req.promptVersion, status: 'error', ms: Date.now() - started, inputTokens: null, outputTokens: null, responseChars: 0, attempts, actorId: req.actorId });
-  const usable = ROUTES[req.task].filter(isConfigured);
-  throw new AiError(
-    usable.length === 0
-      ? `No AI provider is configured for this task. Set one of: ${ROUTES[req.task].map((p) => p.toUpperCase() + '_API_KEY').join(', ')}.`
-      : 'All AI providers failed. Try again shortly.',
-    attempts,
-  );
 }
 
 export { MODELS };

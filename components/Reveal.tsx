@@ -35,7 +35,8 @@ export default function Reveal({
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const { introDone } = useIntro();
-  const ready = !waitForIntro || introDone;
+  const awaitingIntro = waitForIntro && !introDone;
+  const ready = !awaitingIntro;
   const Tag = as as 'div';
 
   useEffect(() => {
@@ -49,28 +50,39 @@ export default function Reveal({
       else { el.style.opacity = '1'; el.style.transform = 'none'; }
     }, 3000);
     const targets = stagger ? Array.from(el.children) : el;
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        targets,
-        { y, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.9,
-          ease: 'power3.out',
-          delay,
-          stagger: stagger ? 0.12 : 0,
-          clearProps: 'transform',
-          scrollTrigger: scroll ? { trigger: el, start: 'top 88%', once: true } : undefined,
-        },
-      );
-    }, el);
-    return () => { window.clearTimeout(fallback); ctx.revert(); };
+    let ctx: ReturnType<typeof gsap.context> | undefined;
+    try {
+      ctx = gsap.context(() => {
+        gsap.fromTo(
+          targets,
+          { y, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.9,
+            ease: 'power3.out',
+            delay,
+            stagger: stagger ? 0.12 : 0,
+            clearProps: 'transform',
+            scrollTrigger: scroll ? { trigger: el, start: 'top 88%', once: true } : undefined,
+          },
+        );
+      }, el);
+    } catch (error) {
+      console.error('Reveal animation failed to initialize', error);
+      if (stagger) Array.from(el.children).forEach((child) => {
+        (child as HTMLElement).style.opacity = '1';
+        (child as HTMLElement).style.transform = 'none';
+      });
+      else { el.style.opacity = '1'; el.style.transform = 'none'; }
+      window.clearTimeout(fallback);
+    }
+    return () => { window.clearTimeout(fallback); ctx?.revert(); };
   }, [ready, stagger, y, delay, scroll]);
 
   const attr = stagger ? { 'data-reveal-stagger': '' } : { 'data-reveal': '' };
   return (
-    <Tag ref={ref} id={id} className={className} {...attr}>
+    <Tag ref={ref} id={id} className={className} {...attr} data-intro-ready={awaitingIntro ? '' : undefined}>
       {children}
     </Tag>
   );

@@ -13,7 +13,7 @@ I could not find ZevCloud's deployment format documented, so nothing here is Zev
 A `Procfile`, `Dockerfile` and `docker-compose.yml` are included (the Docker files are untested here).
 
 ## Environment
-Copy `env.example`, fill it in, and set it in your host's environment. Never commit real values. Feature flags are environment variables; changing one needs a redeploy because some pages decide at build time.
+Copy `.env.example`, fill it in, and set it in your host's environment. Never commit real values. Feature flags are environment variables; changing one needs a redeploy because some pages decide at build time.
 
 ## Database setup, once
 1. Supabase SQL editor: run `supabase/migrations/0001` to `0010` in order.

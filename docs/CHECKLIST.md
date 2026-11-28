@@ -21,7 +21,7 @@ Everything here was tested **offline** with fakes and a headless browser. Nothin
 
 ```
 npm install
-cp env.example .env.local            # fill it in (section 0)
+cp .env.example .env.local           # fill it in (section 0)
 # Supabase SQL editor, in this exact order:
 #   supabase/migrations/0001 ... 0010
 npm run bootstrap-admin              # creates the first owner

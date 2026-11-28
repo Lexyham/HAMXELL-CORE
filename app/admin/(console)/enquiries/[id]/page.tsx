@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Notice, BTN_GHOST } from '@/components/admin/ui';
 import { logActivity } from '@/lib/activity';
 import { requireAdmin } from '@/lib/auth';
+import { EMAIL_DELIVERY_PENDING } from '@/lib/enquiry-delivery';
 import { createClient } from '@/lib/supabase/server';
 import { resendEmails, setEnquiryStatus } from '../actions';
 
@@ -23,6 +24,12 @@ export default async function EnquiryPage({ params, searchParams }: { params: { 
   }
   const reply = `mailto:${encodeURIComponent(e.email).replace(/%40/g, '@')}?subject=${encodeURIComponent(`Re: ${e.subject || 'your enquiry'}`)}`;
   const emailsOk = e.ack_sent_at && e.notified_at;
+  const deliveryPending = e.email_error === EMAIL_DELIVERY_PENDING;
+  const pendingIsStale = deliveryPending && Date.now() - Date.parse(e.updated_at) >= 120_000;
+  const deliveryState = (sentAt: string | null) => sentAt
+    ? `Sent ${new Date(sentAt).toLocaleString('en-GB')}`
+    : deliveryPending ? pendingIsStale ? 'Pending too long; recovery is available' : 'Delivery attempt in progress'
+      : e.email_error ? 'Failed' : 'Not confirmed';
 
   return (
     <div className="max-w-[44rem]">
@@ -44,11 +51,11 @@ export default async function EnquiryPage({ params, searchParams }: { params: { 
       <section className="mt-8 border border-line p-4">
         <p className="font-mono text-label uppercase text-ink-muted">Email delivery</p>
         <ul className="mt-2 text-small text-ink-muted">
-          <li>Acknowledgement to visitor: {e.ack_sent_at ? `sent ${new Date(e.ack_sent_at).toLocaleString('en-GB')}` : 'not sent'}</li>
-          <li>Notification to you: {e.notified_at ? `sent ${new Date(e.notified_at).toLocaleString('en-GB')}` : 'not sent'}</li>
+          <li>Acknowledgement to visitor: {deliveryState(e.ack_sent_at)}</li>
+          <li>Notification to you: {deliveryState(e.notified_at)}</li>
         </ul>
         {e.email_error && <p className="mt-2 break-words text-small text-warning">{e.email_error}</p>}
-        {!emailsOk && <form action={resendEmails} className="mt-3"><input type="hidden" name="id" value={e.id} /><button type="submit" className={BTN_GHOST}>Retry sending</button></form>}
+        {!emailsOk && (!deliveryPending || pendingIsStale) && <form action={resendEmails} className="mt-3"><input type="hidden" name="id" value={e.id} /><button type="submit" className={BTN_GHOST}>Retry unsent emails</button></form>}
       </section>
     </div>
   );

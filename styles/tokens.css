@@ -122,6 +122,10 @@ a {
 [data-reveal-stagger] > * {
   opacity: 0;
 }
+[data-reveal][data-intro-ready],
+[data-reveal-stagger][data-intro-ready] > * {
+  opacity: 1;
+}
 @media (prefers-reduced-motion: reduce) {
   .intro-gate {
     display: none;
@@ -154,7 +158,7 @@ html.lenis body {
 .hxc-cursor { opacity: 0; transition: opacity 200ms ease; }
 html.cursor-live .hxc-cursor { opacity: 1; }
 html.cursor-text .hxc-cursor { opacity: 0; }
-html.has-cursor *:not(input):not(textarea):not(select):not([contenteditable]) { cursor: none; }
+html.has-cursor.cursor-live *:not(input):not(textarea):not(select):not([contenteditable]) { cursor: none; }
 .hxc-ring { border-radius: 9999px; transition: border-color 200ms ease; }
 .hxc-ring.is-holding { border-color: var(--brand-gold); }
 .hxc-cursor > div > div { border-radius: 9999px; }

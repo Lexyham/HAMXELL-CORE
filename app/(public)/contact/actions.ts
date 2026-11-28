@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers';
 import { emailConfigured, sendEmail } from '@/lib/email';
+import { deliverEnquiryEmails } from '@/lib/enquiry-delivery';
 import { ackEmail, notifyEmail } from '@/lib/email-templates';
 import { validateEnquiry } from '@/lib/enquiry';
 import { rateLimit } from '@/lib/rate-limit';
@@ -15,8 +16,8 @@ const MIN_FILL_MS = 1500;
  * Flow (spec section 11): honeypot + rate limit + validation, row saved in Supabase, then Brevo acknowledgement to the visitor
  * and notification to the admin. The enquiry is saved before any email is attempted, so a Brevo outage never loses a message.
  */
-export async function submitEnquiry(p: EnquiryPayload): Promise<{ ok: true } | { error: string }> {
-  if (typeof p.website === 'string' && p.website.trim() !== '') return { ok: true }; // honeypot: bots fill it, humans never see it
+export async function submitEnquiry(p: EnquiryPayload): Promise<{ ok: true; emailWarning: boolean } | { error: string }> {
+  if (typeof p.website === 'string' && p.website.trim() !== '') return { ok: true, emailWarning: false }; // honeypot: bots fill it, humans never see it
   if (!Number.isFinite(p.ts) || Date.now() - p.ts < MIN_FILL_MS) return { error: 'Please take a moment to review your message and send it again.' };
 
   const caller = headers().get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'; // transient rate-limit key only; never stored
@@ -34,19 +35,24 @@ export async function submitEnquiry(p: EnquiryPayload): Promise<{ ok: true } | {
     return { error: 'Your message could not be saved. Please try again shortly.' };
   }
 
-  if (emailConfigured()) {
-    const adminTo = process.env.BREVO_ADMIN_NOTIFY_EMAIL;
-    const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
-    void (async () => {
-      const [ack, note] = await Promise.all([
-        sendEmail({ email: v.value.email, name: v.value.name }, ackEmail(v.value), adminTo ? { email: adminTo } : undefined),
-        adminTo ? sendEmail({ email: adminTo }, notifyEmail(v.value, data.id, appUrl), { email: v.value.email, name: v.value.name }) : Promise.resolve({ ok: false as const, error: 'BREVO_ADMIN_NOTIFY_EMAIL is not set.' }),
-      ]);
-      const errors = [!ack.ok && `acknowledgement: ${ack.error}`, !note.ok && `notification: ${note.error}`].filter(Boolean).join(' | ');
-      await sb.from('enquiries').update({ ack_sent_at: ack.ok ? new Date().toISOString() : null, notified_at: note.ok ? new Date().toISOString() : null, email_error: errors || null }).eq('id', data.id);
-    })();
-  } else {
-    void sb.from('enquiries').update({ email_error: 'Email is not configured.' }).eq('id', data.id);
-  }
-  return { ok: true };
+  const adminTo = process.env.BREVO_ADMIN_NOTIFY_EMAIL;
+  const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
+  const delivery = await deliverEnquiryEmails({
+    ackSentAt: null,
+    notifiedAt: null,
+    sendAcknowledgement: () => sendEmail(
+      { email: v.value.email, name: v.value.name },
+      ackEmail(v.value),
+      adminTo ? { email: adminTo } : undefined,
+    ),
+    sendNotification: () => adminTo
+      ? sendEmail({ email: adminTo }, notifyEmail(v.value, data.id, appUrl), { email: v.value.email, name: v.value.name })
+      : Promise.resolve({ ok: false as const, error: 'BREVO_ADMIN_NOTIFY_EMAIL is not set.' }),
+    persist: async (patch) => {
+      const { error: updateError } = await sb.from('enquiries').update(patch).eq('id', data.id);
+      return updateError?.message ?? null;
+    },
+  });
+  if (delivery.errors.length) console.error('enquiry email delivery needs attention', data.id, delivery.errors.join(' | '));
+  return { ok: true, emailWarning: delivery.errors.length > 0 };
 }

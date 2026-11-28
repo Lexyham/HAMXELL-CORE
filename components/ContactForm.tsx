@@ -9,6 +9,7 @@ const label = 'block font-mono text-label uppercase text-ink-muted';
 
 export default function ContactForm({ defaultSubject = '' }: { defaultSubject?: string }) {
   const [done, setDone] = useState(false);
+  const [emailWarning, setEmailWarning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const shownAt = useRef(0);
@@ -21,7 +22,10 @@ export default function ContactForm({ defaultSubject = '' }: { defaultSubject?: 
     start(async () => {
       const r = await submitEnquiry({ name: get('name'), email: get('email'), subject: get('subject'), message: get('message'), website: get('website'), ts: shownAt.current });
       if ('error' in r) setError(r.error);
-      else setDone(true);
+      else {
+        setEmailWarning(r.emailWarning);
+        setDone(true);
+      }
     });
   };
 
@@ -30,6 +34,7 @@ export default function ContactForm({ defaultSubject = '' }: { defaultSubject?: 
       <div role="status" className="border border-line bg-bg-secondary p-5">
         <p className="text-h2 font-semibold">Message received</p>
         <p className="mt-3 max-w-[48ch] text-small text-ink-muted">Thank you. Your enquiry has been recorded and will be read directly. A confirmation is sent to your email address when email delivery is available.</p>
+        {emailWarning && <p role="alert" className="mt-3 max-w-[48ch] text-small text-warning">Your enquiry was saved, but one or more email notifications could not be confirmed. The team can still read your message in the management dashboard; please do not submit it again.</p>}
       </div>
     );
   }

@@ -1,9 +1,23 @@
 import { requireAdmin } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 
+type ActivityLogRow = {
+  id: number;
+  action: string;
+  actor_email: string | null;
+  entity: string | null;
+  entity_id: string | null;
+  ip: string | null;
+  created_at: string;
+};
+
 export default async function LogsPage() {
   await requireAdmin();
-  const { data } = await createClient().from('activity_logs').select('id, action, actor_email, entity, entity_id, meta, ip, created_at').order('created_at', { ascending: false }).limit(200);
+  const { data } = await createClient().from('activity_logs')
+    .select('id, action, actor_email, entity, entity_id, ip, created_at')
+    .returns<ActivityLogRow[]>()
+    .order('created_at', { ascending: false })
+    .limit(200);
   return (
     <div className="max-w-[64rem]">
       <h1 className="text-h1 font-semibold">Activity</h1>

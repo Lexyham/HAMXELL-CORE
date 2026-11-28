@@ -6,6 +6,7 @@ import { flag } from '@/lib/flags';
 import BackgroundEmblems from '@/components/BackgroundEmblems';
 import Footer from '@/components/Footer';
 import IntroGate from '@/components/IntroGate';
+import { IntroContent } from '@/components/IntroProvider';
 import Navbar from '@/components/Navbar';
 import SmoothScroll from '@/components/SmoothScroll';
 
@@ -19,18 +20,19 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <CustomCursor />
       <IntroGate />
       <SmoothScroll />
-      {/* #site is hidden by CSS while the intro plays (see styles/tokens.css), so the page can never show through. */}
-      <div id="site" className="relative">
-        <BackgroundEmblems />
-        <div className="relative z-10">
-          <Navbar />
-          <main id="main" className="min-h-[70vh]">
-            {children}
-          </main>
-          <Footer />
+      <IntroContent>
+        <div id="site" className="relative">
+          <BackgroundEmblems />
+          <div className="relative z-10">
+            <Navbar />
+            <main id="main" className="min-h-[70vh]">
+              {children}
+            </main>
+            <Footer />
+          </div>
         </div>
-      </div>
-      {chatReady && <ChatWidget />}
+        {chatReady && <ChatWidget />}
+      </IntroContent>
     </>
   );
 }

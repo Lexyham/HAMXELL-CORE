@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth';
+import { EMAIL_DELIVERY_PENDING } from '@/lib/enquiry-delivery';
 import { createClient } from '@/lib/supabase/server';
 
 const TABS = ['all', 'new', 'read', 'replied', 'closed'] as const;
@@ -8,7 +9,7 @@ const TONE: Record<string, string> = { new: 'border-brand-gold text-brand-gold',
 export default async function EnquiriesPage({ searchParams }: { searchParams: { status?: string } }) {
   await requireAdmin();
   const tab = (TABS as readonly string[]).includes(searchParams.status ?? '') ? searchParams.status! : 'all';
-  let q = createClient().from('enquiries').select('id, name, email, subject, message, status, email_error, created_at').order('created_at', { ascending: false }).limit(100);
+  let q = createClient().from('enquiries').select('id, name, email, subject, message, status, ack_sent_at, notified_at, email_error, created_at').order('created_at', { ascending: false }).limit(100);
   if (tab !== 'all') q = q.eq('status', tab);
   const { data } = await q;
 
@@ -25,7 +26,9 @@ export default async function EnquiriesPage({ searchParams }: { searchParams: { 
               <span className="min-w-0">
                 <span className="block text-body font-medium">{e.name} <span className="font-normal text-ink-muted">&lt;{e.email}&gt;</span></span>
                 <span className="block truncate text-small text-ink-muted">{e.subject || e.message}</span>
-                {e.email_error && <span className="block text-small text-warning">Email problem, open to retry</span>}
+                <span className={`block text-small ${e.email_error ? 'text-warning' : 'text-ink-muted'}`}>
+                  Email delivery: {e.email_error === EMAIL_DELIVERY_PENDING ? 'pending' : e.email_error ? 'failed, open to recover' : e.ack_sent_at && e.notified_at ? 'sent' : 'not confirmed'}
+                </span>
               </span>
               <span className="flex items-start gap-3">
                 <span className="font-mono text-label uppercase text-ink-muted">{new Date(e.created_at).toLocaleDateString('en-GB')}</span>
